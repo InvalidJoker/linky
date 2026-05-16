@@ -14,8 +14,8 @@
 {/if}
 <p>Workspace: {data.user.notionWorkspaceName ?? "Unknown workspace"}</p>
 <p>Page ID: {data.user.notionPageId ?? "Not created yet"}</p>
-<p>Database ID: {data.user.notionDatabaseId ?? "Not created yet"}</p>
-<p>Data source ID: {data.user.notionDataSourceId ?? "Not created yet"}</p>
+<p>Groups data source ID: {data.user.notionGroupsDataSourceId ?? "Not created yet"}</p>
+<p>Links data source ID: {data.user.notionLinksDataSourceId ?? "Not created yet"}</p>
 <form method="post" use:enhance>
 	<button>Sign out</button>
 </form>

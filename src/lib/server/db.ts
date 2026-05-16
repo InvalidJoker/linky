@@ -29,8 +29,10 @@ CREATE TABLE IF NOT EXISTS user (
     notion_workspace_id TEXT,
     notion_workspace_name TEXT,
     notion_page_id TEXT,
-    notion_database_id TEXT,
-    notion_data_source_id TEXT,
+    notion_groups_database_id TEXT,
+    notion_groups_data_source_id TEXT,
+    notion_links_database_id TEXT,
+    notion_links_data_source_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );

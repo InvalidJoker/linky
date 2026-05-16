@@ -24,8 +24,10 @@ SELECT
 	user.notion_workspace_id,
 	user.notion_workspace_name,
 	user.notion_page_id,
-	user.notion_database_id,
-	user.notion_data_source_id
+	user.notion_groups_database_id,
+	user.notion_groups_data_source_id,
+	user.notion_links_database_id,
+	user.notion_links_data_source_id
 FROM session
 INNER JOIN user ON session.user_id = user.id
 WHERE session.id = ?
@@ -52,8 +54,10 @@ WHERE session.id = ?
 		notionWorkspaceId: row.stringNullable(10),
 		notionWorkspaceName: row.stringNullable(11),
 		notionPageId: row.stringNullable(12),
-		notionDatabaseId: row.stringNullable(13),
-		notionDataSourceId: row.stringNullable(14)
+		notionGroupsDatabaseId: row.stringNullable(13),
+		notionGroupsDataSourceId: row.stringNullable(14),
+		notionLinksDatabaseId: row.stringNullable(15),
+		notionLinksDataSourceId: row.stringNullable(16)
 	};
 	if (Date.now() >= session.expiresAt.getTime()) {
 		db.execute("DELETE FROM session WHERE id = ?", [session.id]);

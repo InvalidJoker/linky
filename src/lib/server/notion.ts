@@ -1,11 +1,13 @@
 import { Client, isFullDatabase } from "@notionhq/client";
-import { updateUserNotionDatabase, updateUserNotionPage } from "./user";
+import { updateUserNotionPage, updateUserNotionResources } from "./user";
 
 import type { OAuth2Tokens } from "arctic";
 import type { User, UpsertUserInput } from "./user";
 
 const notionVersion = "2026-03-11";
-const appDatabaseTitle = "SvelteKit OAuth Example";
+const appPageTitle = "Linky";
+const groupsDatabaseTitle = "Linky Groups";
+const linksDatabaseTitle = "Linky Links";
 
 export async function getNotionProfile(accessToken: string): Promise<NotionProfile> {
 	const notion = createNotionClient(accessToken);
@@ -31,8 +33,10 @@ export function getUserInputFromNotion(tokens: OAuth2Tokens, profile: NotionProf
 		notionWorkspaceId: data.workspace_id ?? null,
 		notionWorkspaceName: data.workspace_name ?? null,
 		notionPageId: null,
-		notionDatabaseId: null,
-		notionDataSourceId: null
+		notionGroupsDatabaseId: null,
+		notionGroupsDataSourceId: null,
+		notionLinksDatabaseId: null,
+		notionLinksDataSourceId: null
 	};
 }
 
@@ -40,23 +44,40 @@ export async function ensureUserNotionDatabase(user: User): Promise<User> {
 	const notion = createNotionClient(user.notionAccessToken);
 	const page = user.notionPageId === null ? await createUserPage(notion, user) : user;
 
-	if (page.notionDatabaseId !== null && page.notionDataSourceId !== null) {
+	if (
+		page.notionGroupsDatabaseId !== null &&
+		page.notionGroupsDataSourceId !== null &&
+		page.notionLinksDatabaseId !== null &&
+		page.notionLinksDataSourceId !== null
+	) {
 		return page;
 	}
 	if (page.notionPageId === null) {
 		throw new Error("Notion page was not created");
 	}
 
+	const groups = await createGroupsDatabase(notion, page.notionPageId);
+	const links = await createLinksDatabase(notion, page.notionPageId, groups.dataSourceId);
+
+	return updateUserNotionResources(page.id, {
+		groupsDatabaseId: groups.databaseId,
+		groupsDataSourceId: groups.dataSourceId,
+		linksDatabaseId: links.databaseId,
+		linksDataSourceId: links.dataSourceId
+	});
+}
+
+async function createGroupsDatabase(notion: Client, parentPageId: string): Promise<NotionDatabaseIds> {
 	const database = await notion.databases.create({
 		parent: {
 			type: "page_id",
-			page_id: page.notionPageId
+			page_id: parentPageId
 		},
 		title: [
 			{
 				type: "text",
 				text: {
-					content: appDatabaseTitle
+					content: groupsDatabaseTitle
 				}
 			}
 		],
@@ -70,14 +91,69 @@ export async function ensureUserNotionDatabase(user: User): Promise<User> {
 					type: "rich_text",
 					rich_text: {}
 				},
-				Created: {
-					type: "date",
-					date: {}
+				"Created at": {
+					type: "created_time",
+					created_time: {}
 				}
 			}
 		}
 	});
 
+	return getDatabaseIds(database);
+}
+
+async function createLinksDatabase(
+	notion: Client,
+	parentPageId: string,
+	groupsDataSourceId: string
+): Promise<NotionDatabaseIds> {
+	const database = await notion.databases.create({
+		parent: {
+			type: "page_id",
+			page_id: parentPageId
+		},
+		title: [
+			{
+				type: "text",
+				text: {
+					content: linksDatabaseTitle
+				}
+			}
+		],
+		initial_data_source: {
+			properties: {
+				Title: {
+					type: "title",
+					title: {}
+				},
+				URL: {
+					type: "url",
+					url: {}
+				},
+				Notes: {
+					type: "rich_text",
+					rich_text: {}
+				},
+				Group: {
+					type: "relation",
+					relation: {
+						data_source_id: groupsDataSourceId,
+						type: "single_property",
+						single_property: {}
+					}
+				},
+				"Created at": {
+					type: "created_time",
+					created_time: {}
+				}
+			}
+		}
+	});
+
+	return getDatabaseIds(database);
+}
+
+function getDatabaseIds(database: Awaited<ReturnType<Client["databases"]["create"]>>): NotionDatabaseIds {
 	if (!isFullDatabase(database)) {
 		throw new Error(`No read permissions on database: ${database.id}`);
 	}
@@ -85,8 +161,10 @@ export async function ensureUserNotionDatabase(user: User): Promise<User> {
 	if (dataSourceId === undefined) {
 		throw new Error("Notion did not return a data source id");
 	}
-
-	return updateUserNotionDatabase(page.id, database.id, dataSourceId);
+	return {
+		databaseId: database.id,
+		dataSourceId
+	};
 }
 
 async function createUserPage(notion: Client, user: User): Promise<User> {
@@ -102,7 +180,7 @@ async function createUserPage(notion: Client, user: User): Promise<User> {
 					{
 						type: "text",
 						text: {
-							content: `${user.notionName}'s SvelteKit OAuth Example`
+							content: appPageTitle
 						}
 					}
 				]
@@ -117,7 +195,7 @@ async function createUserPage(notion: Client, user: User): Promise<User> {
 						{
 							type: "text",
 							text: {
-								content: "This page was created by the SvelteKit OAuth example."
+								content: "Linky stores your link groups, group notes, links, and link notes in the databases below."
 							}
 						}
 					]
@@ -153,3 +231,8 @@ interface NotionTokenData {
 }
 
 type NotionProfile = Awaited<ReturnType<Client["users"]["me"]>>;
+
+interface NotionDatabaseIds {
+	databaseId: string;
+	dataSourceId: string;
+}

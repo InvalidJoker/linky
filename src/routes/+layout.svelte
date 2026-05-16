@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Notion OAuth example in SvelteKit</title>
+	<title>Linky</title>
 </svelte:head>
 
 {@render children()}

@@ -1,6 +1,6 @@
-# Notion OAuth example in SvelteKit
+# Linky
 
-Uses Bun's native SQLite driver. Rate limiting is implemented using JavaScript `Map`.
+Linky is a link management app backed by each user's Notion workspace. Bun SQLite is used only for auth sessions, OAuth tokens, and Notion resource ids. Link groups, group notes, links, and link notes are stored in Notion.
 
 ## Initialize Project
 
@@ -25,6 +25,6 @@ bun run dev
 
 ## Notes
 
-- `sqlite.db` is created automatically on startup.
+- `database.db` is created automatically on startup.
 - The Notion access token is stored locally so server-side routes can make Notion API requests for the signed-in user.
-- On sign-in, the app creates a private Notion page for the user, then creates a Notion database named `SvelteKit OAuth Example` under that page if the signed-in user does not already have local Notion ids.
+- On sign-in, the app creates a private `Linky` page for the user, then creates `Linky Groups` and `Linky Links` Notion databases under that page if the signed-in user does not already have local Notion resource ids.

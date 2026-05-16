@@ -16,12 +16,14 @@ INSERT INTO user (
 	notion_workspace_id,
 	notion_workspace_name,
 	notion_page_id,
-	notion_database_id,
-	notion_data_source_id,
+	notion_groups_database_id,
+	notion_groups_data_source_id,
+	notion_links_database_id,
+	notion_links_data_source_id,
 	created_at,
 	updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(notion_user_id) DO UPDATE SET
 	notion_name = excluded.notion_name,
 	notion_avatar_url = excluded.notion_avatar_url,
@@ -42,8 +44,10 @@ RETURNING
 	notion_workspace_id,
 	notion_workspace_name,
 	notion_page_id,
-	notion_database_id,
-	notion_data_source_id
+	notion_groups_database_id,
+	notion_groups_data_source_id,
+	notion_links_database_id,
+	notion_links_data_source_id
 `,
 		[
 			input.notionUserId,
@@ -55,8 +59,10 @@ RETURNING
 			input.notionWorkspaceId,
 			input.notionWorkspaceName,
 			input.notionPageId,
-			input.notionDatabaseId,
-			input.notionDataSourceId,
+			input.notionGroupsDatabaseId,
+			input.notionGroupsDataSourceId,
+			input.notionLinksDatabaseId,
+			input.notionLinksDataSourceId,
 			now,
 			now
 		]
@@ -84,8 +90,10 @@ RETURNING
 	notion_workspace_id,
 	notion_workspace_name,
 	notion_page_id,
-	notion_database_id,
-	notion_data_source_id
+	notion_groups_database_id,
+	notion_groups_data_source_id,
+	notion_links_database_id,
+	notion_links_data_source_id
 `,
 		[notionPageId, Math.floor(Date.now() / 1000), userId]
 	);
@@ -95,11 +103,16 @@ RETURNING
 	return rowToUser(row);
 }
 
-export function updateUserNotionDatabase(userId: number, notionDatabaseId: string, notionDataSourceId: string): User {
+export function updateUserNotionResources(userId: number, resources: NotionResourceIds): User {
 	const row = db.queryOne(
 		`
 UPDATE user
-SET notion_database_id = ?, notion_data_source_id = ?, updated_at = ?
+SET
+	notion_groups_database_id = ?,
+	notion_groups_data_source_id = ?,
+	notion_links_database_id = ?,
+	notion_links_data_source_id = ?,
+	updated_at = ?
 WHERE id = ?
 RETURNING
 	id,
@@ -112,10 +125,19 @@ RETURNING
 	notion_workspace_id,
 	notion_workspace_name,
 	notion_page_id,
-	notion_database_id,
-	notion_data_source_id
+	notion_groups_database_id,
+	notion_groups_data_source_id,
+	notion_links_database_id,
+	notion_links_data_source_id
 `,
-		[notionDatabaseId, notionDataSourceId, Math.floor(Date.now() / 1000), userId]
+		[
+			resources.groupsDatabaseId,
+			resources.groupsDataSourceId,
+			resources.linksDatabaseId,
+			resources.linksDataSourceId,
+			Math.floor(Date.now() / 1000),
+			userId
+		]
 	);
 	if (row === null) {
 		throw new Error("Unexpected error");
@@ -134,8 +156,10 @@ export interface User {
 	notionWorkspaceId: string | null;
 	notionWorkspaceName: string | null;
 	notionPageId: string | null;
-	notionDatabaseId: string | null;
-	notionDataSourceId: string | null;
+	notionGroupsDatabaseId: string | null;
+	notionGroupsDataSourceId: string | null;
+	notionLinksDatabaseId: string | null;
+	notionLinksDataSourceId: string | null;
 }
 
 export interface UpsertUserInput {
@@ -148,8 +172,17 @@ export interface UpsertUserInput {
 	notionWorkspaceId: string | null;
 	notionWorkspaceName: string | null;
 	notionPageId: string | null;
-	notionDatabaseId: string | null;
-	notionDataSourceId: string | null;
+	notionGroupsDatabaseId: string | null;
+	notionGroupsDataSourceId: string | null;
+	notionLinksDatabaseId: string | null;
+	notionLinksDataSourceId: string | null;
+}
+
+export interface NotionResourceIds {
+	groupsDatabaseId: string;
+	groupsDataSourceId: string;
+	linksDatabaseId: string;
+	linksDataSourceId: string;
 }
 
 function rowToUser(row: Row): User {
@@ -164,7 +197,9 @@ function rowToUser(row: Row): User {
 		notionWorkspaceId: row.stringNullable(7),
 		notionWorkspaceName: row.stringNullable(8),
 		notionPageId: row.stringNullable(9),
-		notionDatabaseId: row.stringNullable(10),
-		notionDataSourceId: row.stringNullable(11)
+		notionGroupsDatabaseId: row.stringNullable(10),
+		notionGroupsDataSourceId: row.stringNullable(11),
+		notionLinksDatabaseId: row.stringNullable(12),
+		notionLinksDataSourceId: row.stringNullable(13)
 	};
 }
