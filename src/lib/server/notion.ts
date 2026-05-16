@@ -67,6 +67,118 @@ export async function ensureUserNotionDatabase(user: User): Promise<User> {
 	});
 }
 
+export async function getLinkyWorkspace(user: User): Promise<LinkyWorkspace> {
+	const groupsDataSourceId = requireResourceId(user.notionGroupsDataSourceId, "groups data source");
+	const linksDataSourceId = requireResourceId(user.notionLinksDataSourceId, "links data source");
+	const notion = createNotionClient(user.notionAccessToken);
+	const [groups, links] = await Promise.all([
+		queryGroups(notion, groupsDataSourceId),
+		queryLinks(notion, linksDataSourceId)
+	]);
+
+	return {
+		groups,
+		links
+	};
+}
+
+export async function createLinkGroup(user: User, input: CreateGroupInput): Promise<void> {
+	const groupsDataSourceId = requireResourceId(user.notionGroupsDataSourceId, "groups data source");
+	const notion = createNotionClient(user.notionAccessToken);
+	await notion.pages.create({
+		parent: {
+			data_source_id: groupsDataSourceId
+		},
+		properties: {
+			Name: {
+				type: "title",
+				title: [
+					{
+						type: "text",
+						text: {
+							content: input.name
+						}
+					}
+				]
+			},
+			Notes: {
+				type: "rich_text",
+				rich_text: input.notes === "" ? [] : richText(input.notes)
+			}
+		}
+	});
+}
+
+export async function createLink(user: User, input: CreateLinkInput): Promise<void> {
+	const linksDataSourceId = requireResourceId(user.notionLinksDataSourceId, "links data source");
+	const notion = createNotionClient(user.notionAccessToken);
+	await notion.pages.create({
+		parent: {
+			data_source_id: linksDataSourceId
+		},
+		properties: {
+			Title: {
+				type: "title",
+				title: richText(input.title)
+			},
+			URL: {
+				type: "url",
+				url: input.url
+			},
+			Notes: {
+				type: "rich_text",
+				rich_text: input.notes === "" ? [] : richText(input.notes)
+			},
+			Group: {
+				type: "relation",
+				relation: input.groupId === "" ? [] : [{ id: input.groupId }]
+			}
+		}
+	});
+}
+
+async function queryGroups(notion: Client, dataSourceId: string): Promise<LinkGroup[]> {
+	const response = await notion.dataSources.query({
+		data_source_id: dataSourceId,
+		sorts: [
+			{
+				property: "Name",
+				direction: "ascending"
+			}
+		]
+	});
+
+	return response.results.filter(isPageResult).map((page) => ({
+		id: page.id,
+		name: titleProperty(page.properties.Name),
+		notes: richTextProperty(page.properties.Notes),
+		url: page.url,
+		createdTime: page.created_time
+	}));
+}
+
+async function queryLinks(notion: Client, dataSourceId: string): Promise<LinkItem[]> {
+	const response = await notion.dataSources.query({
+		data_source_id: dataSourceId,
+		sorts: [
+			{
+				timestamp: "created_time",
+				direction: "descending"
+			}
+		]
+	});
+
+	return response.results.filter(isPageResult).map((page) => ({
+		id: page.id,
+		title: titleProperty(page.properties.Title),
+		url: urlProperty(page.properties.URL),
+		notes: richTextProperty(page.properties.Notes),
+		groupIds: relationProperty(page.properties.Group),
+		notionUrl: page.url,
+		createdTime: page.created_time
+	}));
+}
+
 async function createGroupsDatabase(notion: Client, parentPageId: string): Promise<NotionDatabaseIds> {
 	const database = await notion.databases.create({
 		parent: {
@@ -214,6 +326,74 @@ function createNotionClient(accessToken: string): Client {
 	});
 }
 
+function requireResourceId(value: string | null, label: string): string {
+	if (value === null) {
+		throw new Error(`Missing Notion ${label}`);
+	}
+	return value;
+}
+
+function richText(content: string): Array<{ type: "text"; text: { content: string } }> {
+	return [
+		{
+			type: "text",
+			text: {
+				content
+			}
+		}
+	];
+}
+
+function isPageResult(value: unknown): value is NotionPageResult {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"object" in value &&
+		(value as { object: unknown }).object === "page" &&
+		"properties" in value
+	);
+}
+
+function titleProperty(property: unknown): string {
+	if (isProperty(property, "title")) {
+		return property.title.map((item) => item.plain_text).join("");
+	}
+	return "";
+}
+
+function richTextProperty(property: unknown): string {
+	if (isProperty(property, "rich_text")) {
+		return property.rich_text.map((item) => item.plain_text).join("");
+	}
+	return "";
+}
+
+function urlProperty(property: unknown): string {
+	if (isProperty(property, "url")) {
+		return property.url ?? "";
+	}
+	return "";
+}
+
+function relationProperty(property: unknown): string[] {
+	if (isProperty(property, "relation")) {
+		return property.relation.map((item) => item.id);
+	}
+	return [];
+}
+
+function isProperty<TType extends string>(
+	property: unknown,
+	type: TType
+): property is Extract<NotionProperty, { type: TType }> {
+	return (
+		typeof property === "object" &&
+		property !== null &&
+		"type" in property &&
+		(property as { type: unknown }).type === type
+	);
+}
+
 interface NotionTokenData {
 	access_token?: string;
 	refresh_token?: string;
@@ -236,3 +416,64 @@ interface NotionDatabaseIds {
 	databaseId: string;
 	dataSourceId: string;
 }
+
+export interface LinkyWorkspace {
+	groups: LinkGroup[];
+	links: LinkItem[];
+}
+
+export interface LinkGroup {
+	id: string;
+	name: string;
+	notes: string;
+	url: string;
+	createdTime: string;
+}
+
+export interface LinkItem {
+	id: string;
+	title: string;
+	url: string;
+	notes: string;
+	groupIds: string[];
+	notionUrl: string;
+	createdTime: string;
+}
+
+export interface CreateGroupInput {
+	name: string;
+	notes: string;
+}
+
+export interface CreateLinkInput {
+	title: string;
+	url: string;
+	notes: string;
+	groupId: string;
+}
+
+interface NotionPageResult {
+	object: "page";
+	id: string;
+	url: string;
+	created_time: string;
+	properties: Record<string, unknown>;
+}
+
+type NotionProperty =
+	| {
+			type: "title";
+			title: Array<{ plain_text: string }>;
+	  }
+	| {
+			type: "rich_text";
+			rich_text: Array<{ plain_text: string }>;
+	  }
+	| {
+			type: "url";
+			url: string | null;
+	  }
+	| {
+			type: "relation";
+			relation: Array<{ id: string }>;
+	  };
