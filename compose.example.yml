@@ -1,0 +1,22 @@
+services:
+  linky:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: linky:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_PATH: /data/database.db
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET}
+      NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:3000/login/notion/callback}
+    volumes:
+      - linky-data:/data
+    restart: unless-stopped
+
+volumes:
+  linky-data:

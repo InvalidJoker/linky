@@ -9,7 +9,7 @@ type RunResult = {
 	changes: number;
 };
 
-const sqlite = new SQLiteDatabase("database.db", {
+const sqlite = new SQLiteDatabase(process.env.DATABASE_PATH ?? "database.db", {
 	create: true,
 	strict: true
 });

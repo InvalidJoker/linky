@@ -23,6 +23,13 @@ Run the application:
 bun run dev
 ```
 
+Run with Docker Compose:
+
+```
+cp compose.example.yml compose.yml
+docker compose up --build
+```
+
 ## Notes
 
 - `database.db` is created automatically on startup.
