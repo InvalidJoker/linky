@@ -68,7 +68,7 @@ async function signOut(event: RequestEvent) {
 	if (event.locals.session === null) {
 		return fail(401);
 	}
-	invalidateSession(event.locals.session.id);
+	await invalidateSession(event.locals.session.id);
 	deleteSessionTokenCookie(event);
 	return redirect(302, "/login");
 }

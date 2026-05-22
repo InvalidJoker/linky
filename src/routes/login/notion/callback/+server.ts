@@ -43,9 +43,9 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		const accessToken = tokens.accessToken();
 		const profile = await getNotionProfile(accessToken);
 		const userInput = getUserInputFromNotion(tokens, profile);
-		const user = await ensureUserNotionDatabase(upsertUser(userInput));
+		const user = await ensureUserNotionDatabase(await upsertUser(userInput));
 		const sessionToken = generateSessionToken();
-		const session = createSession(sessionToken, user.id);
+		const session = await createSession(sessionToken, user.id);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 	} catch (e) {
 		console.error(e);

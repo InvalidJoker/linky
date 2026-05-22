@@ -1,0 +1,38 @@
+services:
+  linky:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: linky:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgres://linky:linky@postgres:5432/linky
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET}
+      NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI:-http://localhost:3000/login/notion/callback}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: linky
+      POSTGRES_USER: linky
+      POSTGRES_PASSWORD: linky
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linky -d linky"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

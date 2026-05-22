@@ -19,7 +19,7 @@ ENV PORT=3000
 
 COPY --from=builder --chown=bun:bun /home/bun/app/build ./
 
-RUN mkdir -p /data && chown -R bun:bun /data /home/bun/app
+RUN chown -R bun:bun /home/bun/app
 
 USER bun
 EXPOSE 3000
